@@ -2,59 +2,69 @@ from optimization import dp_minimization, step_minimization
 import numpy as np
 import matplotlib.pyplot as plt
 
-N = 10
+N = 1000
 T = 10
 m1, m2 = 1, 2
 epsilon, gamma = 0.1, 2
 
-j1 = np.zeros(T+1)
-j2 = np.zeros(T+1)
-j1[0], j2[0] = m1, m2
-memo = {}
+j1 = m1*np.ones(T+1)
+j2 = m2*np.ones(T+1)
+j1[T], j2[T] = 0, 0
+#memo = {}
 
-j1, j2, h = dp_minimization(N, 0, T, j1, j2, epsilon, gamma, memo)
+i = 0
+h_prev = float('inf')
+h_curr = 0
 
-# Flexibility to choose gamma range and number of plots
-gamma_start = 0      # Start value of gamma
-gamma_end = gamma    # End value of gamma
-num_plots = 16       # Number of plots (4x4 grid)
+while abs(h_prev - h_curr) > 1e-5 and i < N:
+    h_prev = h_curr
+
+    for t in range(1, T):
+        j1, j2 = step_minimization(j1, j2, t, epsilon, gamma)
+
+    K = 0.5 * np.sum(np.diff(j1)**2) + 0.5 * np.sum(np.diff(j2)**2)
+    I = gamma * np.sum(np.diff(j1) * np.diff(j2))
+    Fb = epsilon * np.sum(j1) + epsilon * np.sum(j2)
+    h_curr = K + I + Fb
+
+    i += 1
+
+gamma_start = 0
+gamma_end = gamma
+num_plots = 16
 gamma_step = (gamma_end - gamma_start) / (num_plots - 1)
 
-# Generate gamma values in decreasing order
 gamma_values = np.linspace(gamma_end, gamma_start, num_plots)
 
 # Initialize a 4x4 grid for plotting
-fig, axs = plt.subplots(4, 4, figsize=(20, 20))  # Increase the figure size
-axs = axs.ravel()  # Flatten the 4x4 grid for easier indexing
+fig, axs = plt.subplots(4, 4, figsize=(16, 16))
+axs = axs.ravel()
 
-# Loop over the selected values of gamma in decreasing order
 for idx, gamma in enumerate(gamma_values):
-    h = np.zeros(N)
-    for i in range(N):
+    i = 0
+    h_prev = float('inf')
+    h_curr = 0
+
+    while abs(h_prev - h_curr) > 1e-5 and i < N:
         for t in range(1, T):
             j1, j2 = step_minimization(j1, j2, t, epsilon, gamma)
         K = 0.5 * np.sum(np.diff(j1)**2) + 0.5 * np.sum(np.diff(j2)**2)
         I = gamma * np.sum(np.diff(j1) * np.diff(j2))
         Fb = epsilon * np.sum(j1) + epsilon * np.sum(j2)
-        h[i] = K + I + Fb
+        h_curr = K + I + Fb
+        i += 1
 
-    # Plot results for the current gamma in the respective subplot
-    axs[idx].plot(range(T + 1), j1, label='j1', marker='o')
-    axs[idx].plot(range(T + 1), j2, label='j2', marker='x')
-    axs[idx].set_title(f'ε = {epsilon}, γ = {gamma:.2f}, h = {h[-1]:.4f}')
+    axs[idx].plot(range(T+1), j1, label='j1', marker='o')
+    axs[idx].plot(range(T+1), j2, label='j2', marker='x')
+    axs[idx].set_title(f'ε = {epsilon}, γ = {gamma:.2f}, h = {h_curr:.4f}')
     axs[idx].legend()
     axs[idx].grid(True)
-    axs[idx].set_ylim(-1, m2 + 1)
+    axs[idx].set_ylim(-1, m2+1)
 
-    # Adjust x-axis labels without rotation
-    axs[idx].set_xticks(range(T + 1))  # Ensure ticks are set
-    axs[idx].tick_params(axis='x', pad=10)  # Increase space between labels and x-axis
-
-# Hide any unused subplots if num_plots < 16
 for i in range(num_plots, len(axs)):
     axs[i].axis('off')
 
-# Adjust layout
+plt.savefig('plot_2roads.pdf', format='pdf', bbox_inches='tight')
+
 plt.tight_layout()
-plt.subplots_adjust(hspace=0.5, wspace=0.5)  # Adjust spacing between subplots
 plt.show()
